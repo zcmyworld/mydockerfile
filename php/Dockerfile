@@ -1,51 +1,56 @@
 FROM ubuntu:14.04
-MAINTAINER Zhicong
 
-ADD build/sources.list /etc/apt/sources.list
-#ADD build/resolv.conf /etc/resolv.conf
+MAINTAINER zhicong
+
+ADD ext/sources.list /etc/apt/sources.list
 
 RUN apt-get update
-RUN apt-get install -y wget
-RUN apt-get install -y vim
-RUN apt-get install -y php5-fpm
-RUN apt-get install -y php5-cli
 
-# php5-dev 包含了很多php开发工具，如：phpize，php-pear
+RUN apt-get install -y software-properties-common
+
+RUN add-apt-repository ppa:ondrej/php
+
+ADD ext/key /
+RUN apt-key add /key
+RUN rm /key
+
+RUN apt-get update
+
+RUN apt-get install -y vim
 
 RUN apt-get install -y curl
 
-# 全局安装composer
-RUN curl -sS https://getcomposer.org/installer | php
-RUN mv composer.phar /usr/local/bin/composer
-
-# php5-dev 包含了很多php开发工具，如：phpize，php-pear
-RUN apt-get install -y php5-dev
-
 RUN apt-get install -y nginx
 
-RUN composer global require "phpunit/phpunit=4.8.*"
-RUN echo "PATH=$PATH:~/.composer/vendor/bin" > ~/.bashrc
+RUN apt-get install -y git
+
+RUN apt-get install -y wget
+
+# php
+RUN apt-get install -y php5.6-dev
+RUN apt-get install -y php5.6-cli
+RUN apt-get install -y php5.6-fpm
+
+RUN mkdir /run/php
+RUN touch /run/php/php5.6-fpm.pid
+
+# mysql-php
+RUN apt-get install -y php5.6-mysql
 
 # xdebug
-RUN wget http://xdebug.org/files/xdebug-2.3.3.tgz
-RUN tar -xzf xdebug-2.3.3.tgz
-RUN cd xdebug-2.3.3 && phpize && ./configure --enable-xdebug && make && make install
-RUN echo "zend_extension=xdebug.so" > /etc/php5/mods-available/xdebug.ini
-RUN ln -s /etc/php5/mods-available/xdebug.ini /etc/php5/fpm/conf.d/xdebug.ini
-RUN ln -s /etc/php5/mods-available/xdebug.ini /etc/php5/cli/conf.d/xdebug.ini
+ADD ext/xdebug-2.4.0.tgz /
+RUN cd xdebug-2.4.0 && phpize && ./configure --enable-xdebug && make && make install
+RUN echo "[XDEBUG]\nzend_extension=xdebug.so\nxdebug.remote_enable=1\nxdebug.remote_autostart=1\nxdebug.remote_host=10.0.1.185\nxdebug.remote_port=9001\nxdebug.remote_log="/tmp/xdebug.log"" > /etc/php/5.6/mods-available/xdebug.ini
+RUN ln -s /etc/php/5.6/mods-available/xdebug.ini /etc/php/5.6/fpm/conf.d/xdebug.ini
+RUN ln -s /etc/php/5.6/mods-available/xdebug.ini /etc/php/5.6/cli/conf.d/xdebug.ini
 
-# curl
-RUN apt-get install -y php5-curl
+# sshd
+RUN apt-get install -y openssh-server
+RUN mkdir /var/run/sshd
+RUN echo "root:pwd" | chpasswd
+RUN sed -i "s/^PermitRootLogin without-password/PermitRootLogin yes/" /etc/ssh/sshd_config
 
-# php5-mysql
-RUN apt-get install -y php5-mysql
-
-# php5-mcrypt
-RUN apt-get install -y php5-mcrypt
-RUN ln -s /etc/php5/mods-available/mcrypt.ini /etc/php5/fpm/conf.d/mcrypt.ini
-RUN ln -s /etc/php5/mods-available/mcrypt.ini /etc/php5/cli/conf.d/mcrypt.ini
-
-
-# memcached
-RUN apt-get install -y memcached
-RUN apt-get install -y php5-memcached
+## phpunit
+ADD ext/phpunit.phar /
+RUN cd / && chmod +x phpunit.phar
+RUN cd / && mv phpunit.phar /usr/local/bin/phpunit
